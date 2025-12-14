@@ -1,0 +1,5 @@
+{
+  "name": "Super Logic Board AI",
+  "description": "A multi-functional digital board game console featuring Gomoku with Gemini AI, Memory Match, and Creative Drawing modes.",
+  "requestFramePermissions": []
+}
