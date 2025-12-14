@@ -4,6 +4,10 @@ export enum GameType {
   MEMORY = 'MEMORY',
   FREEDRAW = 'FREEDRAW',
   SNAKE = 'SNAKE',
+  TICTACTOE = 'TICTACTOE',
+  SUDOKU = 'SUDOKU',
+  SLIDING = 'SLIDING',
+  MATCH3 = 'MATCH3',
 }
 
 export enum Player {

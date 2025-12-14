@@ -55,9 +55,9 @@ export const translations = {
     downloadImage: "Download Image",
     zoom: "Zoom",
     templates: "Templates",
-    puppy: "Puppy",
-    fish: "Fish",
-    heart: "Heart",
+    girl: "Girl",
+    fish: "Clownfish",
+    rabbit: "Rabbit",
     canvasSize: "Grid Size",
     gridCols: "Cols",
     gridRows: "Rows",
@@ -70,6 +70,25 @@ export const translations = {
     generate: "Generate",
     cancel: "Cancel",
     uploadTip: "Image will be resized to fit grid",
+    speed: "Speed",
+    slow: "Slow",
+    normal: "Normal",
+    fast: "Fast",
+    level: "Level",
+    nextLevel: "Next Level",
+    combo: "Combo",
+    penalty: "Miss",
+    levelComplete: "Level Complete!",
+    moves: "Moves",
+    noteMode: "Note Mode",
+    erase: "Erase",
+    check: "Check",
+    solved: "SOLVED!",
+    scramble: "Scramble",
+    tictactoeDesc: "Classic 3x3 strategy game.",
+    sudokuDesc: "Logic-based number puzzle.",
+    slidingDesc: "Order the numbered tiles.",
+    match3Desc: "Fast-paced puzzle matching.",
     gomokuDesc: "Five-in-a-row strategy.",
     goDesc: "Surround and capture strategy.",
     memoryDesc: "Test your cognitive recall.",
@@ -91,8 +110,9 @@ export const translations = {
     memoryRules: [
       "Tap a card to flip it over.",
       "Find the matching pair for each card.",
-      "Remember card locations to reduce turns.",
-      "Clear the board to win."
+      "Matches give points and increase combo.",
+      "Mismatches reset combo and deduct points.",
+      "Clear the board to advance to the next level (up to 8x8)."
     ],
     drawRules: [
       "Select a color from the palette.",
@@ -105,6 +125,29 @@ export const translations = {
       "Eat the red food to grow and earn points.",
       "Avoid hitting the walls or your own tail.",
       "Survive as long as you can!"
+    ],
+    tictactoeRules: [
+      "Get 3 of your marks in a row, column, or diagonal.",
+      "You are X, AI is O.",
+      "Center control is key!",
+      "If the board fills up, it's a draw."
+    ],
+    sudokuRules: [
+      "Fill the 9x9 grid with digits.",
+      "Each row, column, and 3x3 section must contain digits 1-9.",
+      "No duplicate digits allowed in any row, column, or block.",
+      "Use 'Note Mode' to track possibilities."
+    ],
+    slidingRules: [
+      "Slide tiles into the empty space.",
+      "Order the numbers from 1 to 15.",
+      "The empty space should end up in the bottom right."
+    ],
+    match3Rules: [
+      "Swap adjacent items to create lines of 3 or more.",
+      "Matches clear items and drop new ones.",
+      "Score points for every match.",
+      "Try to get high scores!"
     ]
   },
   zh: {
@@ -161,9 +204,9 @@ export const translations = {
     downloadImage: "下载图片(带网格)",
     zoom: "缩放",
     templates: "范例",
-    puppy: "小狗",
-    fish: "小鱼",
-    heart: "爱心",
+    girl: "小女孩",
+    fish: "小丑鱼",
+    rabbit: "小兔子",
     canvasSize: "画布规格",
     gridCols: "列数",
     gridRows: "行数",
@@ -176,6 +219,25 @@ export const translations = {
     generate: "开始生成",
     cancel: "取消",
     uploadTip: "图片将自动调整至网格大小",
+    speed: "速度",
+    slow: "慢速",
+    normal: "标准",
+    fast: "快速",
+    level: "关卡",
+    nextLevel: "下一关",
+    combo: "连击",
+    penalty: "失误",
+    levelComplete: "关卡完成！",
+    moves: "步数",
+    noteMode: "笔记模式",
+    erase: "擦除",
+    check: "检查",
+    solved: "挑战成功！",
+    scramble: "打乱",
+    tictactoeDesc: "经典的井字棋博弈。",
+    sudokuDesc: "逻辑数字填充谜题。",
+    slidingDesc: "经典的数字华容道。",
+    match3Desc: "快节奏消除游戏。",
     gomokuDesc: "经典五子棋策略对战。",
     goDesc: "围地吃子的黑白博弈。",
     memoryDesc: "考验记忆力的配对游戏。",
@@ -197,8 +259,9 @@ export const translations = {
     memoryRules: [
       "点击卡片将其翻转。",
       "找到每张卡片对应的配对。",
-      "记住卡片位置以减少回合数。",
-      "消除所有卡片即可获胜。"
+      "连续配对成功可获得连击分数加成。",
+      "配对失败会重置连击并扣分。",
+      "清空棋盘即可晋级下一关（最高8x8）。"
     ],
     drawRules: [
       "从调色板选择颜色。",
@@ -211,6 +274,29 @@ export const translations = {
       "吃掉红色食物变长并得分。",
       "避免撞到墙壁或自己的尾巴。",
       "尽可能生存更久！"
+    ],
+    tictactoeRules: [
+      "在横、竖、斜线上连成3个标记获胜。",
+      "你执X，AI执O。",
+      "占据中心是关键！",
+      "如果棋盘填满仍无胜者，则为平局。"
+    ],
+    sudokuRules: [
+      "在9x9格子里填入数字。",
+      "每行、每列和每个3x3宫内必须包含数字1-9。",
+      "数字不能重复。",
+      "使用‘笔记模式’标记候选数。"
+    ],
+    slidingRules: [
+      "滑动方块到空格位置。",
+      "将数字按1-15顺序排列。",
+      "空格最终应位于右下角。"
+    ],
+    match3Rules: [
+      "交换相邻元素，使3个或以上相同元素连线。",
+      "消除元素后会掉落新元素。",
+      "消除越多得分越高。",
+      "冲击高分！"
     ]
   }
 };
@@ -219,6 +305,7 @@ export const t = (lang: Language, key: keyof typeof translations.en) => {
   return translations[lang][key] || translations['en'][key];
 };
 
-export const tRules = (lang: Language, key: 'gomokuRules' | 'memoryRules' | 'drawRules' | 'snakeRules' | 'goRules') => {
-  return translations[lang][key];
+export const tRules = (lang: Language, key: string) => {
+  // @ts-ignore
+  return translations[lang][key] || [];
 }

@@ -6,6 +6,10 @@ import { MemoryGame } from './games/Memory';
 import { FreeDraw } from './games/FreeDraw';
 import { Snake } from './games/Snake';
 import { GoGame } from './games/Go';
+import { TicTacToe } from './games/TicTacToe';
+import { Sudoku } from './games/Sudoku';
+import { SlidingPuzzle } from './games/SlidingPuzzle';
+import { Match3 } from './games/Match3';
 import { t } from './utils/translations';
 import { playSound } from './utils/sound';
 
@@ -52,6 +56,41 @@ const SnakeIcon = () => (
   </svg>
 );
 
+const TicTacToeIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 3l18 18" />
+    <path d="M18 3l-18 18" />
+  </svg>
+);
+
+const SudokuIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M3 9h18" />
+    <path d="M3 15h18" />
+    <path d="M9 3v18" />
+    <path d="M15 3v18" />
+  </svg>
+);
+
+const SlidingIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" />
+    <rect x="14" y="3" width="7" height="7" />
+    <rect x="3" y="14" width="7" height="7" />
+    <path d="M14 14l7 7" strokeDasharray="4" />
+  </svg>
+);
+
+const Match3Icon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="6" cy="6" r="3" />
+    <circle cx="18" cy="18" r="3" />
+    <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+    <path d="M6 18l12-12" strokeOpacity="0.5" />
+  </svg>
+);
+
 const App: React.FC = () => {
   const [activeGame, setActiveGame] = useState<GameType | null>(null);
   const [lang, setLang] = useState<Language>('en');
@@ -68,6 +107,14 @@ const App: React.FC = () => {
         return <FreeDraw onBack={() => setActiveGame(null)} lang={lang} />;
       case GameType.SNAKE:
         return <Snake onBack={() => setActiveGame(null)} lang={lang} />;
+      case GameType.TICTACTOE:
+        return <TicTacToe onBack={() => setActiveGame(null)} lang={lang} />;
+      case GameType.SUDOKU:
+        return <Sudoku onBack={() => setActiveGame(null)} lang={lang} />;
+      case GameType.SLIDING:
+        return <SlidingPuzzle onBack={() => setActiveGame(null)} lang={lang} />;
+      case GameType.MATCH3:
+        return <Match3 onBack={() => setActiveGame(null)} lang={lang} />;
       default:
         return null;
     }
@@ -124,6 +171,34 @@ const App: React.FC = () => {
                 onClick={() => handleGameSelect(GameType.GO)}
               />
               <GameCard 
+                title={lang === 'en' ? 'Tic Tac Toe' : '井字棋'}
+                description={t(lang, 'tictactoeDesc')}
+                icon={<TicTacToeIcon />} 
+                color="bg-orange-500"
+                onClick={() => handleGameSelect(GameType.TICTACTOE)}
+              />
+              <GameCard 
+                title={lang === 'en' ? 'Sudoku' : '数独'}
+                description={t(lang, 'sudokuDesc')}
+                icon={<SudokuIcon />} 
+                color="bg-indigo-500"
+                onClick={() => handleGameSelect(GameType.SUDOKU)}
+              />
+              <GameCard 
+                title={lang === 'en' ? 'Sliding Puzzle' : '数字华容道'}
+                description={t(lang, 'slidingDesc')}
+                icon={<SlidingIcon />} 
+                color="bg-teal-600"
+                onClick={() => handleGameSelect(GameType.SLIDING)}
+              />
+              <GameCard 
+                title={lang === 'en' ? 'Match 3' : '消消乐'}
+                description={t(lang, 'match3Desc')}
+                icon={<Match3Icon />} 
+                color="bg-pink-500"
+                onClick={() => handleGameSelect(GameType.MATCH3)}
+              />
+              <GameCard 
                 title={lang === 'en' ? 'Memory Match' : '记忆配对'}
                 description={t(lang, 'memoryDesc')}
                 icon={<MemoryIcon />} 
@@ -144,13 +219,6 @@ const App: React.FC = () => {
                 color="bg-purple-500"
                 onClick={() => handleGameSelect(GameType.FREEDRAW)}
               />
-               <div className="flex flex-col items-center p-6 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 text-center opacity-60">
-                <div className="w-16 h-16 rounded-2xl bg-gray-200 flex items-center justify-center mb-4 text-gray-400">
-                  <span className="text-2xl font-bold">?</span>
-                </div>
-                <h3 className="text-lg font-bold text-gray-400 mb-1">Tetris</h3>
-                <p className="text-xs text-gray-400">Coming Soon</p>
-              </div>
             </div>
           )}
         </div>
@@ -165,7 +233,7 @@ const App: React.FC = () => {
       
       <p className="mt-6 text-gray-400 text-xs text-center max-w-md">
         Powered by Gemini 2.5 Flash. Requires API Key for AI Opponent. <br/>
-        Super Logic Board 1.3
+        Super Logic Board 1.4
       </p>
     </div>
   );

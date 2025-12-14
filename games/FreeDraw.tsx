@@ -5,11 +5,11 @@ import { TutorialModal } from '../components/TutorialModal';
 import { playSound } from '../utils/sound';
 import { generatePixelArt } from '../services/geminiService';
 
-const DEFAULT_SIZE = 15;
-const MAX_SIZE = 32;
+const DEFAULT_SIZE = 16;
+const MAX_SIZE = 500;
 const MIN_SIZE = 5;
 const PALETTE = ['#ffffff', '#000000', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#8b5cf6', '#6366f1', '#0ea5e9', '#10b981', '#84cc16', '#71717a', '#52525b'];
-const SIZE_PRESETS = [10, 15, 20, 24, 32];
+const SIZE_PRESETS = [10, 16, 24, 32, 48, 64];
 
 interface FreeDrawProps {
   onBack: () => void;
@@ -28,51 +28,56 @@ interface SavedDrawing {
 const createGrid = (rows: number, cols: number, fill: string) => 
   Array(rows).fill(0).map(() => Array(cols).fill(fill));
 
-// Pre-defined Templates (Always 15x15)
+// Pre-defined Templates based on uploaded images (16x16)
 const TEMPLATES = [
   {
-    key: 'puppy',
-    icon: '🐶',
+    key: 'girl',
+    icon: '👧',
     generate: () => {
-      const g = createGrid(15, 15, '#ffffff');
+      const g = createGrid(16, 16, '#ffffff');
       const B = '#000000'; // Black
-      const Y = '#eab308'; // Yellow
-      const R = '#ef4444'; // Red
+      const W = '#ffffff'; // White
+      const O = '#f97316'; // Orange (Blush/Mouth)
+      const R = '#ef4444'; // Red (Mouth)
+      const Y = '#eab308'; // Yellow (Tie)
       
-      // Ears
-      g[2][4] = B; g[3][4] = B; g[4][4] = B; g[5][4] = B; g[6][4] = B;
-      g[2][10] = B; g[3][10] = B; g[4][10] = B; g[5][10] = B; g[6][10] = B;
+      // Hair
+      // Top Hair
+      for(let c=6; c<=9; c++) g[3][c] = B;
+      for(let c=5; c<=10; c++) g[4][c] = B;
+      g[5][4] = B; g[5][5] = B; g[5][10] = B; g[5][11] = B;
       
-      // Inner Ear
-      g[3][5] = Y; g[4][5] = Y; g[5][5] = Y;
-      g[3][9] = Y; g[4][9] = Y; g[5][9] = Y;
+      // Ponytail
+      g[2][12] = B; g[3][13] = B; g[4][14] = B; g[5][14] = B;
+      g[3][14] = B;
       
-      // Ear Outline Top/Side
-      g[2][5] = B; g[2][9] = B;
-      g[3][3] = B; g[4][3] = B; g[5][3] = B; g[6][3] = B;
-      g[3][11] = B; g[4][11] = B; g[5][11] = B; g[6][11] = B;
+      // Hair tie
+      g[3][11] = Y; g[3][12] = Y;
 
-      // Head Top
-      g[4][6] = B; g[4][7] = B; g[4][8] = B;
-      g[5][7] = B; // Fur tuft?
+      // Side hair
+      g[6][3] = B; g[7][3] = B; g[8][3] = B; g[9][3] = B; g[10][3] = B; 
+      g[11][3] = B; g[12][4] = B;
+      g[6][12] = B; g[7][12] = B; g[8][12] = B; g[9][12] = B; g[10][12] = B;
+      g[11][12] = B; g[12][11] = B;
 
-      // Face Outline
-      g[7][3] = B; g[8][3] = B; g[9][4] = B; g[10][5] = B; g[11][6] = B;
-      g[7][11] = B; g[8][11] = B; g[9][10] = B; g[10][9] = B; g[11][8] = B;
-
+      // Face (White background mostly handles it, but let's outline)
       // Eyes
-      g[7][5] = B; g[7][9] = B;
+      g[8][5] = B; g[9][5] = B;
+      g[8][9] = B; g[9][9] = B;
 
-      // Nose
-      g[8][7] = Y;
+      // Blush
+      g[10][4] = O; g[10][5] = O;
+      g[10][9] = O; g[10][10] = O;
+      g[10][7] = Y; // Nose?
 
       // Mouth
-      g[9][6] = R; g[9][7] = R; g[9][8] = R;
+      g[12][6] = R; g[12][7] = R; g[12][8] = R;
+      g[13][6] = O; g[13][7] = O; g[13][8] = O;
 
-      // Chin
-      g[10][6] = B; g[10][8] = B;
-      g[11][7] = B;
-      
+      // Body (Stick figure style in image)
+      g[14][7] = B; g[15][7] = B; // Neck/Body
+      g[15][6] = B; g[15][8] = B;
+
       return g;
     }
   },
@@ -80,64 +85,82 @@ const TEMPLATES = [
     key: 'fish',
     icon: '🐠',
     generate: () => {
-      const g = createGrid(15, 15, '#ffffff');
+      const g = createGrid(16, 16, '#3b82f6'); // Blue background
       const O = '#f97316'; // Orange
-      const B = '#3b82f6'; // Blue
-      const K = '#000000'; // Black
+      const B = '#000000'; // Black
+      const W = '#ffffff'; // White
+      const Y = '#eab308'; // Yellow
 
-      // Fish Body
-      for(let r=5; r<=9; r++) {
-         for(let c=4; c<=10; c++) {
-             if ((r===5 || r===9) && (c<6 || c>8)) continue;
-             g[r][c] = O;
-         }
+      // Clownfish shape roughly
+      for(let r=4; r<=12; r++) {
+        for(let c=3; c<=12; c++) {
+           // Ellipse approximate
+           if ((r===4||r===12) && (c<5||c>10)) continue;
+           if ((r===5||r===11) && (c<4||c>11)) continue;
+           g[r][c] = O;
+        }
       }
-      
-      // Tail
-      g[6][2] = O; g[8][2] = O;
-      g[5][1] = O; g[6][1] = O; g[7][1] = O; g[8][1] = O; g[9][1] = O;
+
+      // Fins
+      g[3][7] = Y; g[3][8] = Y; // Top
+      g[13][7] = Y; g[13][8] = Y; // Bottom
+      g[8][13] = Y; g[7][13] = Y; g[9][13] = Y; // Tail
+
+      // White Stripe
+      for(let r=4; r<=12; r++) {
+         if(g[r][7] === O) g[r][7] = W;
+         if(g[r][8] === O) g[r][8] = W;
+      }
 
       // Eye
-      g[6][8] = '#ffffff'; 
-      g[6][9] = K;
+      g[6][5] = W; g[6][6] = B;
 
-      // Bubbles
-      g[4][12] = B;
-      g[3][13] = B;
+      // Outline (Simplified)
+      g[8][13] = B;
 
       return g;
     }
   },
   {
-    key: 'heart',
-    icon: '❤️',
+    key: 'rabbit',
+    icon: '🐰',
     generate: () => {
-      const g = createGrid(15, 15, '#ffffff');
-      const R = '#ef4444';
+      const g = createGrid(16, 16, '#ffffff');
+      const B = '#000000'; // Black outline
+      const R = '#ef4444'; // Red details
+      const P = '#ec4899'; // Pink
+      const U = '#3b82f6'; // Blue decorations
       
-      const pattern = [
-        "000000000000000",
-        "000000000000000",
-        "000111000111000",
-        "001111101111100",
-        "001111111111100",
-        "001111111111100",
-        "001111111111100",
-        "000111111111000",
-        "000111111111000",
-        "000011111110000",
-        "000001111100000",
-        "000000111000000",
-        "000000010000000",
-        "000000000000000",
-        "000000000000000"
-      ];
-      
-      for(let r=0; r<15; r++) {
-          for(let c=0; c<15; c++) {
-              if (pattern[r][c] === '1') g[r][c] = R;
-          }
-      }
+      // Ears
+      g[2][4] = B; g[3][4] = B; g[4][4] = B; g[5][4] = B;
+      g[2][5] = P; g[3][5] = P; g[4][5] = P; 
+      g[2][6] = B; g[3][6] = B; g[4][6] = B; g[5][6] = B;
+
+      g[2][9] = B; g[3][9] = B; g[4][9] = B; g[5][9] = B;
+      g[2][10] = P; g[3][10] = P; g[4][10] = P;
+      g[2][11] = B; g[3][11] = B; g[4][11] = B; g[5][11] = B;
+
+      // Face Outline
+      g[6][3] = B; g[7][3] = B; g[8][3] = B; g[9][3] = B; g[10][3] = B;
+      g[6][12] = B; g[7][12] = B; g[8][12] = B; g[9][12] = B; g[10][12] = B;
+      g[11][4] = B; g[11][11] = B;
+      g[12][5] = B; g[12][6] = B; g[12][7] = B; g[12][8] = B; g[12][9] = B; g[12][10] = B;
+
+      // Eyes
+      g[8][5] = B; g[9][5] = B;
+      g[8][10] = B; g[9][10] = B;
+
+      // Cheeks
+      g[9][3] = R; g[9][12] = R; 
+
+      // Mouth/Nose
+      g[10][7] = B; g[10][8] = B;
+      g[11][7] = R; g[11][8] = R;
+
+      // Blue stars
+      g[4][1] = U; g[3][2] = U; g[5][2] = U; g[4][3] = U;
+      g[8][14] = U; 
+
       return g;
     }
   }
@@ -153,6 +176,10 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1.0);
   
+  // History State
+  const [history, setHistory] = useState<string[][][]>(() => [createGrid(DEFAULT_SIZE, DEFAULT_SIZE, '#ffffff')]);
+  const [historyStep, setHistoryStep] = useState(0);
+
   // Resize State
   const [rows, setRows] = useState(DEFAULT_SIZE);
   const [cols, setCols] = useState(DEFAULT_SIZE);
@@ -173,6 +200,43 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
     }
   }, []);
 
+  const pushToHistory = (newGrid: string[][]) => {
+    const newHistory = history.slice(0, historyStep + 1);
+    newHistory.push(newGrid);
+    if (newHistory.length > 20) newHistory.shift();
+    
+    setHistory(newHistory);
+    setHistoryStep(newHistory.length - 1);
+  };
+
+  const handleUndo = () => {
+    if (historyStep > 0) {
+        const nextStep = historyStep - 1;
+        const prevGrid = history[nextStep];
+        setGrid(prevGrid);
+        setHistoryStep(nextStep);
+        setRows(prevGrid.length);
+        setCols(prevGrid[0].length);
+        setNewRows(prevGrid.length);
+        setNewCols(prevGrid[0].length);
+        playSound.click();
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyStep < history.length - 1) {
+        const nextStep = historyStep + 1;
+        const nextGrid = history[nextStep];
+        setGrid(nextGrid);
+        setHistoryStep(nextStep);
+        setRows(nextGrid.length);
+        setCols(nextGrid[0].length);
+        setNewRows(nextGrid.length);
+        setNewCols(nextGrid[0].length);
+        playSound.click();
+    }
+  };
+
   const paint = (r: number, c: number) => {
     if (r >= rows || c >= cols) return;
     setGrid(prev => {
@@ -189,6 +253,16 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
 
   const handlePointerEnter = (r: number, c: number) => {
     if (isDrawing) paint(r, c);
+  };
+
+  const handlePointerUp = () => {
+    if (isDrawing) {
+        setIsDrawing(false);
+        // Save to history if changed
+        if (historyStep >= 0 && grid !== history[historyStep]) {
+             pushToHistory(grid);
+        }
+    }
   };
 
   const saveDrawing = () => {
@@ -215,6 +289,7 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
     setCols(c);
     setNewRows(r);
     setNewCols(c);
+    pushToHistory(drawing.grid);
 
     setShowLoadMenu(false);
     playSound.flip();
@@ -223,10 +298,11 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
   const loadTemplate = (generator: () => string[][]) => {
       const g = generator();
       setGrid(g);
-      setRows(15);
-      setCols(15);
-      setNewRows(15);
-      setNewCols(15);
+      setRows(16);
+      setCols(16);
+      setNewRows(16);
+      setNewCols(16);
+      pushToHistory(g);
       setShowTemplateMenu(false);
       playSound.flip();
   };
@@ -288,7 +364,8 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
   const adjustZoom = (delta: number) => {
     setZoomLevel(prev => {
       const next = prev + delta;
-      return Math.min(Math.max(next, 0.5), 3.0);
+      // 10% to 500%
+      return Math.min(Math.max(next, 0.1), 5.0);
     });
     playSound.click();
   };
@@ -313,12 +390,20 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
     setCols(safeC);
     setNewRows(safeR);
     setNewCols(safeC);
+    pushToHistory(newGrid);
     playSound.pop();
     setShowPresets(false);
   }
 
   const handleResizeGrid = () => {
     applySize(newRows, newCols);
+  };
+
+  const handleClear = () => {
+    const newG = createGrid(rows, cols, '#ffffff');
+    setGrid(newG);
+    pushToHistory(newG);
+    playSound.pop();
   };
 
   // --- AI Gen ---
@@ -337,6 +422,7 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
         })
       );
       setGrid(newGrid);
+      pushToHistory(newGrid);
       playSound.match();
       setShowAiModal(false);
     } catch (e) {
@@ -387,6 +473,7 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
                 }
             }
             setGrid(newGrid);
+            pushToHistory(newGrid);
             playSound.pop();
         };
         img.src = event.target?.result as string;
@@ -578,9 +665,25 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
                 />
               ))}
             </div>
-            <div className="flex items-center border-l border-gray-400 pl-3 ml-1">
+            <div className="flex items-center border-l border-gray-400 pl-3 ml-1 gap-1">
               <button 
-                  onClick={() => { setGrid(createGrid(rows, cols, '#ffffff')); playSound.pop(); }}
+                  onClick={handleUndo} 
+                  disabled={historyStep <= 0}
+                  className="px-2 py-1 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={t(lang, 'undo')}
+                >
+                  ⟲
+              </button>
+              <button 
+                  onClick={handleRedo} 
+                  disabled={historyStep >= history.length - 1}
+                  className="px-2 py-1 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={t(lang, 'redo')}
+                >
+                  ⟳
+              </button>
+              <button 
+                  onClick={handleClear}
                   className="px-3 py-1 bg-white text-red-500 border border-red-200 rounded-lg hover:bg-red-50 text-xs font-bold whitespace-nowrap shadow-sm transition-colors"
                 >
                   {t(lang, 'clear')}
@@ -593,8 +696,8 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
           <div className="absolute top-2 left-2 text-xs text-gray-300 font-mono select-none pointer-events-none">{rows}×{cols}</div>
           <div 
             className="bg-white p-1 shadow-2xl transition-all duration-300 ease-out"
-            onPointerUp={() => setIsDrawing(false)}
-            onPointerLeave={() => setIsDrawing(false)}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
             style={{ 
                 touchAction: 'none',
                 boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' 
