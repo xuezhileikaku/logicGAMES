@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Language } from '../types';
 import { t, tRules } from '../utils/translations';
 import { TutorialModal } from '../components/TutorialModal';
 import { playSound } from '../utils/sound';
+import { generatePixelArt } from '../services/geminiService';
 
 const DEFAULT_SIZE = 15;
 const MAX_SIZE = 32;
 const MIN_SIZE = 5;
-const PALETTE = ['#ffffff', '#000000', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7'];
+const PALETTE = ['#ffffff', '#000000', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#8b5cf6', '#6366f1', '#0ea5e9', '#10b981', '#84cc16', '#71717a', '#52525b'];
 const SIZE_PRESETS = [10, 15, 20, 24, 32];
 
 interface FreeDrawProps {
@@ -158,6 +159,12 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
   const [newRows, setNewRows] = useState(DEFAULT_SIZE);
   const [newCols, setNewCols] = useState(DEFAULT_SIZE);
   const [showPresets, setShowPresets] = useState(false);
+
+  // AI & Upload State
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('drawings');
@@ -314,6 +321,80 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
     applySize(newRows, newCols);
   };
 
+  // --- AI Gen ---
+  const handleAiGen = async () => {
+    if (!prompt.trim()) return;
+    setIsGenerating(true);
+    try {
+      const aiGrid = await generatePixelArt(prompt, rows, cols);
+      // AI might return different size, we just map it 1:1 to current top-left
+      // Or resize current board to match AI result if we wanted, but let's stick to current canvas size constraints
+      
+      const newGrid = Array(rows).fill(0).map((_, r) => 
+        Array(cols).fill(0).map((_, c) => {
+            if (aiGrid[r] && aiGrid[r][c]) return aiGrid[r][c];
+            return '#ffffff';
+        })
+      );
+      setGrid(newGrid);
+      playSound.match();
+      setShowAiModal(false);
+    } catch (e) {
+      alert("AI Generation failed. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // --- Image Upload ---
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+            // Resize image to fit grid using a canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = cols;
+            canvas.height = rows;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            
+            // Draw image scaled to grid size
+            ctx.drawImage(img, 0, 0, cols, rows);
+            
+            // Get pixel data
+            const imgData = ctx.getImageData(0, 0, cols, rows).data;
+            const newGrid = createGrid(rows, cols, '#ffffff');
+
+            // Convert rgba to hex
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const i = (r * cols + c) * 4;
+                    const red = imgData[i];
+                    const green = imgData[i + 1];
+                    const blue = imgData[i + 2];
+                    const alpha = imgData[i + 3];
+                    
+                    if (alpha > 128) { // If visible
+                        const hex = "#" + ((1 << 24) + (red << 16) + (green << 8) + blue).toString(16).slice(1);
+                        newGrid[r][c] = hex;
+                    } else {
+                        newGrid[r][c] = '#ffffff';
+                    }
+                }
+            }
+            setGrid(newGrid);
+            playSound.pop();
+        };
+        img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // Reset input
+  };
+
   const baseCellSize = 24; // Base px size for calculation
   const currentCellSize = Math.floor(baseCellSize * zoomLevel);
 
@@ -327,15 +408,45 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
           rules={tRules(lang, 'drawRules')}
       />
 
+      {/* AI Modal */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fadeIn p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">✨ {t(lang, 'aiGen')}</h3>
+            <input 
+              type="text" 
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder={t(lang, 'enterPrompt')}
+              className="w-full border-2 border-gray-300 rounded-lg p-2 mb-4 focus:border-purple-500 outline-none"
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowAiModal(false)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">{t(lang, 'cancel')}</button>
+              <button 
+                onClick={handleAiGen} 
+                disabled={isGenerating || !prompt}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isGenerating ? t(lang, 'generating') : t(lang, 'generate')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header / Top Toolbar */}
       <div className="flex justify-between items-center w-full mb-2 px-2 sm:px-4">
         <button onClick={() => { onBack(); playSound.click(); }} className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-medium">
           ← {t(lang, 'back')}
         </button>
         <div className="flex gap-2 flex-wrap justify-end">
+           {/* Save */}
            <button onClick={saveDrawing} className="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 text-sm font-bold shadow-sm flex items-center gap-1">
              <span>💾</span> <span className="hidden sm:inline">{t(lang, 'save')}</span>
            </button>
            
+           {/* Load */}
            <div className="relative">
              <button onClick={() => { setShowLoadMenu(!showLoadMenu); setShowTemplateMenu(false); playSound.click(); }} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm font-bold shadow-sm flex items-center gap-1">
                <span>📂</span> <span className="hidden sm:inline">{t(lang, 'load')}</span>
@@ -353,6 +464,7 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
               )}
            </div>
 
+           {/* Templates */}
            <div className="relative">
              <button onClick={() => { setShowTemplateMenu(!showTemplateMenu); setShowLoadMenu(false); playSound.click(); }} className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 text-sm font-bold shadow-sm flex items-center gap-1">
                <span>🧩</span> <span className="hidden sm:inline">{t(lang, 'templates')}</span>
@@ -373,54 +485,70 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
              )}
            </div>
 
-           <button onClick={handleDownload} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 text-sm font-bold shadow-sm flex items-center gap-1" title={t(lang, 'downloadImage')}>
+           {/* AI Button */}
+           <button onClick={() => setShowAiModal(true)} className="px-3 py-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg hover:opacity-90 text-sm font-bold shadow-sm flex items-center gap-1 border border-purple-300">
+             <span>✨</span> <span className="hidden sm:inline">{t(lang, 'aiGen')}</span>
+           </button>
+
+           {/* Upload Button */}
+           <button onClick={() => fileInputRef.current?.click()} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-bold shadow-sm flex items-center gap-1 border border-gray-300" title={t(lang, 'uploadTip')}>
+             <span>📤</span> <span className="hidden sm:inline">{t(lang, 'uploadImg')}</span>
+           </button>
+           <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
+
+           {/* Download */}
+           <button onClick={handleDownload} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-bold shadow-sm flex items-center gap-1 border border-gray-300" title={t(lang, 'downloadImage')}>
              <span>📷</span>
            </button>
            <button onClick={() => setShowTutorial(true)} className="text-gray-400 hover:text-gray-600 ml-1">?</button>
         </div>
       </div>
 
-      {/* Toolbar: Colors, Resize, and Zoom */}
-      <div className="bg-gray-200 p-2 rounded-xl mb-4 flex flex-col gap-2 w-full shadow-inner">
+      {/* Toolbar: Resize and Zoom Controls (Redesigned) */}
+      <div className="bg-gray-200 p-3 rounded-xl mb-4 flex flex-col gap-3 w-full shadow-inner border border-gray-300">
          
-         {/* Top Row: Resize and Zoom Controls */}
-         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-300 pb-2 mb-1">
-            <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm px-2 relative">
-                    <span className="text-xs text-gray-500 font-bold whitespace-nowrap">{t(lang, 'canvasSize')}:</span>
+         <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Left: Grid Resize */}
+            <div className="flex items-center gap-2 p-2 bg-white rounded-xl shadow-sm border border-gray-200">
+                <span className="text-sm text-slate-700 font-bold whitespace-nowrap px-1">{t(lang, 'canvasSize')}:</span>
+                <div className="flex items-center gap-1">
                     <input 
                         type="number" 
                         min={MIN_SIZE} max={MAX_SIZE} 
                         value={newCols} 
                         onChange={(e) => setNewCols(parseInt(e.target.value))} 
-                        className="w-10 text-xs text-center border rounded bg-gray-50 p-1"
+                        className="w-14 h-9 text-lg font-bold text-center border-2 border-slate-300 rounded-lg bg-gray-50 focus:border-blue-500 focus:bg-white transition-all text-slate-800"
                         placeholder={t(lang, 'gridCols')}
-                        title={t(lang, 'gridCols')}
                     />
-                    <span className="text-xs text-gray-400 font-mono">x</span>
+                    <span className="text-slate-400 font-bold mx-1">×</span>
                     <input 
                         type="number" 
                         min={MIN_SIZE} max={MAX_SIZE} 
                         value={newRows} 
                         onChange={(e) => setNewRows(parseInt(e.target.value))} 
-                        className="w-10 text-xs text-center border rounded bg-gray-50 p-1"
+                        className="w-14 h-9 text-lg font-bold text-center border-2 border-slate-300 rounded-lg bg-gray-50 focus:border-blue-500 focus:bg-white transition-all text-slate-800"
                         placeholder={t(lang, 'gridRows')}
-                        title={t(lang, 'gridRows')}
                     />
-                    <button onClick={handleResizeGrid} className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded font-bold shadow-sm ml-1 transition-colors">{t(lang, 'apply')}</button>
-                    
-                    {/* Presets Button */}
-                    <button onClick={() => setShowPresets(!showPresets)} className="ml-1 text-gray-400 hover:text-gray-600 text-xs">▼</button>
-                    {showPresets && (
-                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-20 p-2 grid grid-cols-2 gap-1 min-w-[120px]">
-                         <span className="text-[10px] text-gray-400 col-span-2 text-center mb-1">{t(lang, 'presets')}</span>
+                </div>
+                
+                <div className="relative ml-1">
+                     <button onClick={handleResizeGrid} className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition-all active:scale-95">
+                        {t(lang, 'apply')}
+                     </button>
+                     {/* Presets Toggle */}
+                     <button onClick={() => setShowPresets(!showPresets)} className="absolute -right-3 -top-3 w-5 h-5 bg-gray-300 hover:bg-gray-400 rounded-full text-[10px] flex items-center justify-center text-gray-700 font-bold border border-white shadow-sm">
+                        ▼
+                     </button>
+                     {showPresets && (
+                      <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl z-20 p-2 grid grid-cols-3 gap-2 w-48 animate-fadeIn">
+                         <span className="text-xs text-gray-400 col-span-3 text-center font-bold uppercase tracking-wider mb-1">{t(lang, 'presets')}</span>
                          {SIZE_PRESETS.map(size => (
                            <button 
                               key={size} 
                               onClick={() => applySize(size, size)}
-                              className="px-2 py-1 text-xs bg-gray-50 hover:bg-blue-50 text-gray-700 rounded border border-gray-100"
+                              className="py-2 text-sm font-bold bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-700 rounded-lg border border-slate-200 transition-colors"
                            >
-                             {size}x{size}
+                             {size}×{size}
                            </button>
                          ))}
                       </div>
@@ -428,30 +556,32 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
                 </div>
             </div>
 
-            <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm">
-                <span className="text-xs text-gray-400 font-mono ml-1 hidden sm:inline">{t(lang, 'zoom')}:</span>
-                <button onClick={() => adjustZoom(-0.25)} className="w-6 h-6 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded text-lg font-bold">-</button>
-                <span className="text-xs font-mono text-gray-500 w-8 text-center">{Math.round(zoomLevel * 100)}%</span>
-                <button onClick={() => adjustZoom(0.25)} className="w-6 h-6 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded text-lg font-bold">+</button>
+            {/* Right: Zoom */}
+            <div className="flex items-center gap-2 bg-white rounded-xl p-2 shadow-sm border border-gray-200 ml-auto">
+                <span className="text-xs text-gray-400 font-bold uppercase ml-1 hidden sm:inline">{t(lang, 'zoom')}</span>
+                <button onClick={() => adjustZoom(-0.25)} className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-lg font-bold transition-colors">-</button>
+                <span className="text-sm font-mono font-bold text-slate-600 w-10 text-center">{Math.round(zoomLevel * 100)}%</span>
+                <button onClick={() => adjustZoom(0.25)} className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-lg font-bold transition-colors">+</button>
             </div>
          </div>
 
          {/* Bottom Row: Colors */}
-         <div className="flex gap-2 overflow-x-auto no-scrollbar items-center w-full justify-between">
-            <div className="flex gap-2 items-center">
+         <div className="flex gap-2 overflow-x-auto no-scrollbar items-center w-full justify-between pt-1 border-t border-gray-300/50">
+            <div className="flex gap-1 sm:gap-2 items-center">
               {PALETTE.map(color => (
                 <button
                   key={color}
                   onClick={() => { setSelectedColor(color); playSound.click(); }}
-                  className={`w-8 h-8 rounded-full border-2 flex-shrink-0 transition-transform ${selectedColor === color ? 'scale-110 border-gray-600 shadow-md ring-1 ring-white' : 'border-transparent scale-100'}`}
+                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg border-2 flex-shrink-0 transition-all ${selectedColor === color ? 'scale-110 border-gray-600 shadow-lg ring-2 ring-white z-10' : 'border-transparent hover:scale-105 shadow-sm'}`}
                   style={{ backgroundColor: color }}
+                  title={color}
                 />
               ))}
             </div>
-            <div className="flex items-center border-l border-gray-400 pl-2 ml-1">
+            <div className="flex items-center border-l border-gray-400 pl-3 ml-1">
               <button 
                   onClick={() => { setGrid(createGrid(rows, cols, '#ffffff')); playSound.pop(); }}
-                  className="px-3 py-1 bg-white text-red-500 border border-red-200 rounded-lg hover:bg-red-50 text-xs font-bold whitespace-nowrap shadow-sm"
+                  className="px-3 py-1 bg-white text-red-500 border border-red-200 rounded-lg hover:bg-red-50 text-xs font-bold whitespace-nowrap shadow-sm transition-colors"
                 >
                   {t(lang, 'clear')}
               </button>
@@ -459,15 +589,19 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
          </div>
       </div>
 
-      <div className="flex-1 w-full overflow-auto flex items-center justify-center bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 p-4">
+      <div className="flex-1 w-full overflow-auto flex items-center justify-center bg-gray-100 rounded-xl border-4 border-dashed border-gray-300 p-4 relative">
+          <div className="absolute top-2 left-2 text-xs text-gray-300 font-mono select-none pointer-events-none">{rows}×{cols}</div>
           <div 
-            className="bg-gray-300 p-1 sm:p-2 rounded-lg shadow-xl"
+            className="bg-white p-1 shadow-2xl transition-all duration-300 ease-out"
             onPointerUp={() => setIsDrawing(false)}
             onPointerLeave={() => setIsDrawing(false)}
-            style={{ touchAction: 'none' }} // Prevent scrolling while drawing
+            style={{ 
+                touchAction: 'none',
+                boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' 
+            }}
           >
             <div 
-              className="grid gap-[1px] bg-gray-400 border border-gray-400"
+              className="grid gap-[1px] bg-gray-200 border border-gray-200"
               style={{ 
                 gridTemplateColumns: `repeat(${cols}, ${currentCellSize}px)`
               }}
@@ -494,7 +628,7 @@ export const FreeDraw: React.FC<FreeDrawProps> = ({ onBack, lang }) => {
           </div>
       </div>
 
-      <p className="mt-2 text-gray-400 text-xs text-center">{lang === 'zh' ? '点击或拖动绘制，支持缩放与导出' : 'Tap or drag to paint. Zoom and export supported.'}</p>
+      <p className="mt-2 text-gray-400 text-xs text-center">{lang === 'zh' ? '点击或拖动绘制，AI生成与图片上传已启用' : 'Tap or drag to paint. AI Gen & Upload enabled.'}</p>
     </div>
   );
 };

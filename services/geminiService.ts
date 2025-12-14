@@ -138,3 +138,56 @@ export const getGameCoachTip = async (gameName: string, stateDescription: string
     return lang === 'zh' ? "保持敏锐！" : "Stay sharp!";
   }
 }
+
+/**
+ * Generates pixel art grid based on prompt
+ */
+export const generatePixelArt = async (prompt: string, rows: number, cols: number): Promise<string[][]> => {
+  if (!apiKey) {
+    throw new Error("No API Key");
+  }
+
+  const systemInstruction = `
+    You are a pixel artist AI.
+    Your task is to generate a ${rows}x${cols} grid of Hex Color Codes based on the user's description.
+    Return ONLY a JSON object containing the grid.
+    The grid should be a 2D array of strings (hex codes).
+    Use '#ffffff' for empty/background space if not specified.
+    Make the art simple and recognizable at this resolution.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: `Generate pixel art for: "${prompt}"`,
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            grid: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const result = JSON.parse(response.text || "{}");
+    
+    // Basic validation
+    if (result.grid && Array.isArray(result.grid) && result.grid.length > 0) {
+      // Ensure dimensions match roughly (or resize logic handled by caller, but here we just return what AI gave)
+      return result.grid;
+    }
+    throw new Error("Invalid format from AI");
+  } catch (error) {
+    console.error("AI Pixel Gen Error:", error);
+    throw error;
+  }
+};
